@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stellar Assault - NES Game</title>
+  <script src="node_modules/jsnes/dist/jsnes.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #222;
+      color: #fff;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      border: 4px solid #444;
+      background: #000;
+    }
+    .container {
+      text-align: center;
+    }
+    h1 {
+      color: #0ff;
+      text-shadow: 2px 2px 4px #00f;
+    }
+    .controls {
+      background: #333;
+      padding: 15px;
+      border-radius: 8px;
+      max-width: 600px;
+    }
+    .control-row {
+      margin: 8px 0;
+    }
+    #status {
+      color: #0f0;
+      font-weight: bold;
+    }
+    .error {
+      color: #f00;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 STELLAR ASSAULT 🚀</h1>
+    <div id="status">Loading...</div>
+    <canvas id="nes-canvas" width="512" height="480"></canvas>
+    <div class="controls">
+      <h3>Controls:</h3>
+      <div class="control-row">Arrow Keys = Move</div>
+      <div class="control-row">Z = A Button (Shoot)</div>
+      <div class="control-row">X = B Button</div>
+      <div class="control-row">Enter = Start</div>
+      <div class="control-row">Shift = Select</div>
+    </div>
+  </div>
+  
+  <script>
+    const canvas = document.getElementById('nes-canvas');
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.createImageData(256, 240);
+    const statusDiv = document.getElementById('status');
+    
+    const nes = new jsnes.NES({
+      onFrame: function(framebuffer_24) {
+        for (let i = 0; i < framebuffer_24.length; i++) {
+          imageData.data[i] = framebuffer_24[i];
+        }
+        ctx.putImageData(imageData, 0, 0);
+      },
+      onStatusUpdate: function(status) {
+        statusDiv.textContent = status;
+      },
+      onAudioSample: function(left, right) {
+        // Audio not implemented yet
+      }
+    });
+    
+    // Keyboard controls
+    const keyboard = {
+      90: jsnes.Controller.BUTTON_A,     // Z = Shoot
+      88: jsnes.Controller.BUTTON_B,     // X = B Button  
+      17: jsnes.Controller.BUTTON_SELECT, // Ctrl
+      13: jsnes.Controller.BUTTON_START,  // Enter
+      38: jsnes.Controller.BUTTON_UP,     // Up
+      40: jsnes.Controller.BUTTON_DOWN,   // Down
+      37: jsnes.Controller.BUTTON_LEFT,   // Left
+      39: jsnes.Controller.BUTTON_RIGHT   // Right
+    };
+    
+    document.addEventListener('keydown', (e) => {
+      if (keyboard[e.keyCode] !== undefined) {
+        nes.buttonDown(1, keyboard[e.keyCode]);
+        e.preventDefault();
+      }
+    });
+    
+    document.addEventListener('keyup', (e) => {
+      if (keyboard[e.keyCode] !== undefined) {
+        nes.buttonUp(1, keyboard[e.keyCode]);
+        e.preventDefault();
+      }
+    });
+    
+    // Load ROM
+    fetch('build/stellar-assault.nes')
+      .then(response => response.arrayBuffer())
+      .then(buffer => {
+        const bytes = new Uint8Array(buffer);
+        
+        // Convert to string for JSNES
+        let romString = '';
+        for (let i = 0; i < bytes.length; i++) {
+          romString += String.fromCharCode(bytes[i]);
+        }
+        
+        nes.loadROM(romString);
+        statusDiv.textContent = 'Game loaded! Use arrow keys to move, Z to shoot!';
+        
+        // Start game loop
+        function frame() {
+          nes.frame();
+          requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+      })
+      .catch(err => {
+        statusDiv.textContent = 'Error loading ROM: ' + err;
+        statusDiv.className = 'error';
+      });
+  </script>
+</body>
+</html>

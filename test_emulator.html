@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>NES Test</title>
+  <script src="node_modules/jsnes/dist/jsnes.min.js"></script>
+</head>
+<body>
+  <canvas id="nes-canvas" width="256" height="240"></canvas>
+  <div id="status"></div>
+  <div id="errors"></div>
+  
+  <script>
+    const canvas = document.getElementById('nes-canvas');
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.createImageData(256, 240);
+    
+    const statusDiv = document.getElementById('status');
+    const errorsDiv = document.getElementById('errors');
+    
+    const nes = new jsnes.NES({
+      onFrame: function(framebuffer_24) {
+        for (let i = 0; i < framebuffer_24.length; i++) {
+          imageData.data[i] = framebuffer_24[i];
+        }
+        ctx.putImageData(imageData, 0, 0);
+      },
+      onStatusUpdate: function(status) {
+        console.log('STATUS:', status);
+        statusDiv.textContent = status;
+      },
+      onAudioSample: function(left, right) {
+        // Audio callback
+      }
+    });
+    
+    window.nes = nes;
+    window.testResult = { success: false, errors: [] };
+    
+    window.loadROMFromBytes = function(romData) {
+      try {
+        console.log('Loading ROM, size:', romData.length);
+
+        // JSNES expects a string, not Uint8Array
+        // Convert Uint8Array to string
+        let romString = '';
+        for (let i = 0; i < romData.length; i++) {
+          romString += String.fromCharCode(romData[i]);
+        }
+
+        console.log('Converted to string, first 4 bytes:', romString.substring(0, 4));
+        nes.loadROM(romString);
+        console.log('ROM loaded successfully');
+        
+        // Run a few frames
+        for (let i = 0; i < 10; i++) {
+          nes.frame();
+        }
+        
+        window.testResult = { success: true, errors: [] };
+        return window.testResult;
+      } catch (e) {
+        console.error('Error loading ROM:', e);
+        window.testResult = { success: false, errors: [e.toString()] };
+        errorsDiv.innerHTML = '<pre>' + e.toString() + '\n' + e.stack + '</pre>';
+        return window.testResult;
+      }
+    };
+  </script>
+</body>
+</html>
