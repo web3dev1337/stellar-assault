@@ -509,22 +509,22 @@ check_collisions:
   LDA enemy_active,Y
   BEQ @next_pe
 
-  ; Check X overlap: if |player_x - enemy_x| < 12
+  ; Check X overlap: if |player_x - enemy_x| < 16
   LDA player_x
   SEC
   SBC enemy_x,Y
   CLC
-  ADC #8              ; Add half-widths (8+4=12, but use 8 for center offset)
-  CMP #16             ; Combined width check
+  ADC #16             ; Center offset (larger hitbox)
+  CMP #32             ; Combined width check (16+16=32)
   BCS @next_pe
 
-  ; Check Y overlap: if |player_y - enemy_y| < 12
+  ; Check Y overlap: if |player_y - enemy_y| < 16
   LDA player_y
   SEC
   SBC enemy_y,Y
   CLC
-  ADC #8
-  CMP #16
+  ADC #16
+  CMP #32
   BCS @next_pe
 
   ; COLLISION! Player hit by enemy

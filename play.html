@@ -53,11 +53,9 @@
     <canvas id="nes-canvas" width="512" height="480"></canvas>
     <div class="controls">
       <h3>Controls:</h3>
-      <div class="control-row">Arrow Keys = Move</div>
-      <div class="control-row">Z = A Button (Shoot)</div>
-      <div class="control-row">X = B Button</div>
-      <div class="control-row">Enter = Start</div>
-      <div class="control-row">Shift = Select</div>
+      <div class="control-row"><b>Z / F / Space</b> = Shoot</div>
+      <div class="control-row"><b>Arrow Keys</b> or <b>WASD</b> = Move</div>
+      <div class="control-row">Enter = Start | Shift = Select</div>
     </div>
   </div>
   
@@ -85,13 +83,20 @@
     // Keyboard controls
     const keyboard = {
       90: jsnes.Controller.BUTTON_A,     // Z = Shoot
-      88: jsnes.Controller.BUTTON_B,     // X = B Button  
+      70: jsnes.Controller.BUTTON_A,     // F = Shoot (alternative)
+      32: jsnes.Controller.BUTTON_A,     // Space = Shoot (alternative)
+      88: jsnes.Controller.BUTTON_B,     // X = B Button
       17: jsnes.Controller.BUTTON_SELECT, // Ctrl
+      16: jsnes.Controller.BUTTON_SELECT, // Shift = Select
       13: jsnes.Controller.BUTTON_START,  // Enter
       38: jsnes.Controller.BUTTON_UP,     // Up
       40: jsnes.Controller.BUTTON_DOWN,   // Down
       37: jsnes.Controller.BUTTON_LEFT,   // Left
-      39: jsnes.Controller.BUTTON_RIGHT   // Right
+      39: jsnes.Controller.BUTTON_RIGHT,  // Right
+      87: jsnes.Controller.BUTTON_UP,     // W = Up
+      83: jsnes.Controller.BUTTON_DOWN,   // S = Down
+      65: jsnes.Controller.BUTTON_LEFT,   // A = Left
+      68: jsnes.Controller.BUTTON_RIGHT   // D = Right
     };
     
     document.addEventListener('keydown', (e) => {
@@ -108,8 +113,8 @@
       }
     });
     
-    // Load ROM
-    fetch('build/stellar-assault.nes')
+    // Load ROM (with cache bust)
+    fetch('build/stellar-assault.nes?v=' + Date.now())
       .then(response => response.arrayBuffer())
       .then(buffer => {
         const bytes = new Uint8Array(buffer);
