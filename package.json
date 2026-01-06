@@ -1,0 +1,28 @@
+{
+  "name": "stellar-assault",
+  "version": "1.0.0",
+  "description": "Advanced NES Space Shooter written in 6502 Assembly",
+  "scripts": {
+    "build": "make",
+    "test": "node test_rom_execution.js",
+    "play": "http-server -p 8765 -o /play.html"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/web3dev1337/stellar-assault.git"
+  },
+  "keywords": ["nes", "6502", "assembly", "game", "retro"],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/web3dev1337/stellar-assault/issues"
+  },
+  "homepage": "https://github.com/web3dev1337/stellar-assault#readme",
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "jsnes": "^1.2.1",
+    "puppeteer": "^24.34.0",
+    "serve-handler": "^6.1.6"
+  }
+}
