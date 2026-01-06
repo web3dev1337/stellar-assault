@@ -1,7 +1,7 @@
 # Stellar Assault - NES Game Makefile
 
 # Assembler
-ASM = ./tools/asm6f/asm6f
+ASM = ./tools/asm6f
 
 # Source files
 SRC = src/main.asm

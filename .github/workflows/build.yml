@@ -1,0 +1,117 @@
+name: Build and Test NES ROM
+
+on:
+  push:
+    branches: [ master, feature/** ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc wget
+
+      - name: Build asm6f assembler
+        run: |
+          if [ ! -f tools/asm6f ]; then
+            wget -q https://raw.githubusercontent.com/freem/asm6f/master/asm6f.c -O tools/asm6f.c
+            gcc -o tools/asm6f tools/asm6f.c
+            rm tools/asm6f.c
+          fi
+
+      - name: Generate CHR-ROM graphics
+        run: |
+          python3 tools/generate_chr.py
+
+      - name: Build NES ROM
+        run: |
+          make
+
+      - name: Verify ROM size
+        run: |
+          ROM_SIZE=$(stat -c%s build/stellar-assault.nes)
+          echo "ROM size: $ROM_SIZE bytes"
+          if [ $ROM_SIZE -lt 1000 ]; then
+            echo "ERROR: ROM too small, build likely failed"
+            exit 1
+          fi
+          if [ $ROM_SIZE -gt 524288 ]; then
+            echo "ERROR: ROM too large (>512KB)"
+            exit 1
+          fi
+
+      - name: Verify iNES header
+        run: |
+          # Check first 4 bytes are "NES\x1A"
+          head -c 4 build/stellar-assault.nes | od -A n -t x1 | grep "4e 45 53 1a" || {
+            echo "ERROR: Invalid iNES header"
+            exit 1
+          }
+          echo "✓ Valid iNES header detected"
+
+      - name: Generate ROM info
+        run: |
+          echo "# Stellar Assault ROM Info" > rom-info.txt
+          echo "" >> rom-info.txt
+          echo "**Build Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> rom-info.txt
+          echo "**Commit:** ${{ github.sha }}" >> rom-info.txt
+          echo "**Branch:** ${{ github.ref_name }}" >> rom-info.txt
+          echo "" >> rom-info.txt
+          echo "**ROM Size:** $(stat -c%s build/stellar-assault.nes) bytes" >> rom-info.txt
+          echo "" >> rom-info.txt
+          echo "## Technical Details" >> rom-info.txt
+          echo "- Mapper: 0 (NROM)" >> rom-info.txt
+          echo "- PRG-ROM: 32KB (2 x 16KB)" >> rom-info.txt
+          echo "- CHR-ROM: 8KB" >> rom-info.txt
+          echo "- Mirroring: Vertical" >> rom-info.txt
+          cat rom-info.txt
+
+      - name: Upload ROM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stellar-assault-rom
+          path: build/stellar-assault.nes
+          retention-days: 90
+
+      - name: Upload ROM info
+        uses: actions/upload-artifact@v4
+        with:
+          name: rom-info
+          path: rom-info.txt
+          retention-days: 90
+
+      - name: Comment ROM size on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const romSize = fs.statSync('build/stellar-assault.nes').size;
+            const comment = `## 🎮 ROM Build Successful!
+
+            **Size:** ${romSize.toLocaleString()} bytes (${(romSize/1024).toFixed(2)} KB)
+
+            ✓ Valid iNES header
+            ✓ Build passed all checks
+
+            Download the ROM from the Actions artifacts above.`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
