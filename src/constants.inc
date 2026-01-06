@@ -1,0 +1,94 @@
+; ============================================
+; Stellar Assault - Constants
+; ============================================
+
+; PPU Registers
+PPUCTRL   = $2000
+PPUMASK   = $2001
+PPUSTATUS = $2002
+OAMADDR   = $2003
+OAMDATA   = $2004
+PPUSCROLL = $2005
+PPUADDR   = $2006
+PPUDATA   = $2007
+
+; APU Registers
+SQ1_VOL   = $4000
+SQ1_SWEEP = $4001
+SQ1_LO    = $4002
+SQ1_HI    = $4003
+SQ2_VOL   = $4004
+SQ2_SWEEP = $4005
+SQ2_LO    = $4006
+SQ2_HI    = $4007
+TRI_LINEAR = $4008
+TRI_LO    = $400A
+TRI_HI    = $400B
+NOISE_VOL = $400C
+NOISE_LO  = $400E
+NOISE_HI  = $400F
+DMC_FREQ  = $4010
+DMC_RAW   = $4011
+DMC_START = $4012
+DMC_LEN   = $4013
+SND_CHN   = $4015
+
+; Controller
+CONTROLLER1 = $4016
+CONTROLLER2 = $4017
+
+; OAM DMA
+OAMDMA = $4014
+
+; Button Masks
+BUTTON_A      = %10000000
+BUTTON_B      = %01000000
+BUTTON_SELECT = %00100000
+BUTTON_START  = %00010000
+BUTTON_UP     = %00001000
+BUTTON_DOWN   = %00000100
+BUTTON_LEFT   = %00000010
+BUTTON_RIGHT  = %00000001
+
+; Screen Constants
+SCREEN_WIDTH  = 256
+SCREEN_HEIGHT = 240
+TILE_SIZE     = 8
+
+; Sprite Constants
+MAX_SPRITES = 64
+SPRITE_SIZE = 4  ; 4 bytes per sprite in OAM
+
+; Game Constants
+MAX_PLAYER_BULLETS = 8
+MAX_ENEMY_BULLETS  = 16
+MAX_ENEMIES        = 16
+MAX_POWERUPS       = 4
+MAX_PARTICLES      = 32
+
+; Player Constants
+PLAYER_START_X = 120
+PLAYER_START_Y = 200
+PLAYER_SPEED   = 2
+PLAYER_LIVES   = 3
+
+; Scroll Speed
+SCROLL_SPEED = 1
+
+; Sprite IDs (tile indices)
+SPRITE_PLAYER       = $00
+SPRITE_PLAYER_BULLET = $04
+SPRITE_ENEMY_1      = $08
+SPRITE_ENEMY_BULLET = $0C
+SPRITE_POWERUP      = $10
+SPRITE_EXPLOSION    = $14
+
+; Object States
+STATE_INACTIVE = 0
+STATE_ACTIVE   = 1
+STATE_DYING    = 2
+
+; Powerup Types
+POWERUP_WEAPON  = 0
+POWERUP_SHIELD  = 1
+POWERUP_LIFE    = 2
