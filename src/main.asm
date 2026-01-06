@@ -1900,17 +1900,24 @@ render_sprites:
 
   LDX #0              ; OAM index
 
-  ; === RENDER STARS (Background) ===
+  ; === RENDER STARS (Background - dim, clearly behind gameplay) ===
   LDY #0
 @render_stars:
   LDA star_y,Y
   STA $0200,X         ; Y position
   LDA #SPRITE_STAR
   STA $0201,X         ; Tile
-  ; Vary palette by speed for depth effect
+  ; All stars use dim palette 1 with behind-background priority
+  ; Faster stars (closer) are slightly brighter via no flip
+  ; Slower stars (distant) flip for variety
   LDA star_speed,Y
-  AND #$01            ; 0 or 1
-  ORA #$20            ; Behind background (priority bit)
+  CMP #2
+  BCC @slow_star
+  LDA #$21            ; Palette 1, behind bg, no flip (closer = slightly brighter)
+  JMP @set_star_attr
+@slow_star:
+  LDA #$61            ; Palette 1, behind bg, flip H (distant = dimmer feel)
+@set_star_attr:
   STA $0202,X         ; Attributes
   LDA star_x,Y
   STA $0203,X         ; X position
@@ -1998,7 +2005,7 @@ render_sprites:
   STA $0200,X
   LDA #SPRITE_SHIELD
   STA $0201,X
-  LDA #1              ; Palette 1 (cyan/blue)
+  LDA #0              ; Palette 0 (cyan - matches player)
   STA $0202,X
   LDA player_x
   CLC
@@ -2075,7 +2082,7 @@ render_sprites:
   STA $0200,X
   LDA #SPRITE_PLAYER_BULLET
   STA $0201,X
-  LDA #1              ; Palette 1
+  LDA #0              ; Palette 0 (bright cyan, matches player)
   STA $0202,X
   LDA bullet_x,Y
   STA $0203,X
@@ -2117,33 +2124,33 @@ render_sprites:
   JMP @set_enemy_attr
 
 @fast_sprite:
-  ; Fast enemy - use SPRITE_ENEMY_3 with palette 1 (yellow/orange)
+  ; Fast enemy - use SPRITE_ENEMY_3 with palette 3 (yellow/white - bright and fast!)
   LDA frame_counter
   AND #$04            ; Faster animation (every 4 frames)
   BEQ @fast_no_flip
   LDA #SPRITE_ENEMY_3
   STA $0201,X
-  LDA #%01000001      ; Palette 1, flip horizontal
+  LDA #%01000011      ; Palette 3, flip horizontal
   JMP @set_enemy_attr
 @fast_no_flip:
   LDA #SPRITE_ENEMY_3
   STA $0201,X
-  LDA #1              ; Palette 1, no flip
+  LDA #3              ; Palette 3, no flip
   JMP @set_enemy_attr
 
 @shooter_sprite:
-  ; Shooter enemy - use SPRITE_ENEMY_2 with palette 3 (red)
+  ; Shooter enemy - use SPRITE_ENEMY_2 with palette 2 (red/orange - menacing)
   LDA frame_counter
   AND #$10            ; Slower animation for menacing look
   BEQ @shooter_no_flip
   LDA #SPRITE_ENEMY_2
   STA $0201,X
-  LDA #%11000011      ; Palette 3, flip both
+  LDA #%11000010      ; Palette 2, flip both
   JMP @set_enemy_attr
 @shooter_no_flip:
   LDA #SPRITE_ENEMY_2
   STA $0201,X
-  LDA #3              ; Palette 3, no flip
+  LDA #2              ; Palette 2, no flip
 
 @set_enemy_attr:
   STA $0202,X
@@ -2198,41 +2205,42 @@ render_sprites:
   STA $0201,X
 
   ; Different palette based on powerup type with flash
+  ; Palette 0 = cyan (player), Palette 3 = yellow/white (effects)
   LDA powerup_type,Y
   CMP #2
   BEQ @shield_powerup_render
   CMP #1
   BEQ @health_powerup_render
-  ; Power powerup (type 0) - cyan, fast flash
+  ; Power powerup (type 0) - yellow flash (palette 3)
   LDA frame_counter
   AND #$04
   BEQ @power_flash_off
-  LDA #1              ; Palette 1 (cyan)
+  LDA #3              ; Palette 3 (yellow/white - bright!)
   JMP @set_powerup_attr
 @power_flash_off:
-  LDA #%10000001      ; Palette 1, priority behind bg (dim effect)
+  LDA #%01000011      ; Palette 3, flip H (visible but animated)
   JMP @set_powerup_attr
 
 @health_powerup_render:
-  ; Health powerup (type 1) - green pulse
+  ; Health powerup (type 1) - cyan pulse (friendly, matches player)
   LDA frame_counter
   AND #$08
   BEQ @health_flash_off
-  LDA #0              ; Palette 0 (green)
+  LDA #0              ; Palette 0 (cyan - player color)
   JMP @set_powerup_attr
 @health_flash_off:
   LDA #%01000000      ; Palette 0, flip H (rotating effect)
   JMP @set_powerup_attr
 
 @shield_powerup_render:
-  ; Shield powerup (type 2) - blue/white rapid flash
+  ; Shield powerup (type 2) - yellow/white rapid flash
   LDA frame_counter
   AND #$02
   BEQ @shield_flash_off
-  LDA #3              ; Palette 3 (blue/white)
+  LDA #3              ; Palette 3 (yellow/white)
   JMP @set_powerup_attr
 @shield_flash_off:
-  LDA #1              ; Palette 1
+  LDA #%01000011      ; Palette 3 with flip (still visible)
 
 @set_powerup_attr:
   STA $0202,X
@@ -2499,10 +2507,10 @@ palette_bg:
   BYTE $0F,$09,$19,$29  ; Greens
 
 palette_sprite:
-  BYTE $0F,$30,$10,$00  ; Player - white/gray
-  BYTE $0F,$21,$11,$01  ; Bullets - blue
-  BYTE $0F,$16,$26,$06  ; Enemies - red
-  BYTE $0F,$28,$18,$08  ; Explosions - yellow/orange
+  BYTE $0F,$2C,$1C,$0C  ; Palette 0: Player - bright cyan (stands out!)
+  BYTE $0F,$00,$10,$2D  ; Palette 1: Stars - very dim gray/dark (background)
+  BYTE $0F,$16,$27,$37  ; Palette 2: Enemies - red/orange (warm, threatening)
+  BYTE $0F,$28,$38,$30  ; Palette 3: Explosions/effects - yellow/white (bright)
 
 ; ============================================
 ; Variables (Zero Page)
