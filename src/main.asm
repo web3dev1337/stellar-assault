@@ -4,7 +4,7 @@
 ; ============================================
 
 ; Include shared constants (PPU, APU, buttons, etc.)
-  INCLUDE "constants.inc"
+  INCLUDE "src/constants.inc"
 
 ; APU_STATUS alias (different name in constants.inc)
 APU_STATUS = SND_CHN
@@ -1149,30 +1149,13 @@ check_boss_collision:
   JSR spawn_explosion
 
   ; Big score bonus (500 points in BCD)
-  ; Add $99 twice ($198 = 198) + $99 + $99 + $05 = 500
-  ; Simpler: add $50 ten times, or use two $99 + three calls
-  ; Actually simplest: $99+$99+$99+$99+$99+$05 is complex
-  ; Just add $50 (50 BCD) ten times for 500 points total
+  ; Add $50 (50 BCD) ten times using loop
+  LDY #10           ; Loop counter
+@boss_score_loop:
   LDA #$50
   JSR add_score
-  LDA #$50
-  JSR add_score
-  LDA #$50
-  JSR add_score
-  LDA #$50
-  JSR add_score
-  LDA #$50
-  JSR add_score
-  LDA #$50
-  JSR add_score
-  LDA #$50
-  JSR add_score
-  LDA #$50
-  JSR add_score
-  LDA #$50
-  JSR add_score
-  LDA #$50
-  JSR add_score
+  DEY
+  BNE @boss_score_loop
 
   ; Spawn powerup
   LDA boss_x
