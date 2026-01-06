@@ -3,58 +3,49 @@
 ; A REAL game with score, lives, game over, powerups!
 ; ============================================
 
-; PPU Registers
-PPUCTRL   = $2000
-PPUMASK   = $2001
-PPUSTATUS = $2002
-OAMADDR   = $2003
-OAMDATA   = $2004
-PPUSCROLL = $2005
-PPUADDR   = $2006
-PPUDATA   = $2007
+; Include shared constants (PPU, APU, buttons, etc.)
+  INCLUDE "src/constants.inc"
 
-; APU Registers
-SQ1_VOL   = $4000
-SQ1_SWEEP = $4001
-SQ1_LO    = $4002
-SQ1_HI    = $4003
-SQ2_VOL   = $4004
-SQ2_SWEEP = $4005
-SQ2_LO    = $4006
-SQ2_HI    = $4007
-TRI_CTRL  = $4008
-TRI_LO    = $400A
-TRI_HI    = $400B
-NOISE_VOL = $400C
-NOISE_LO  = $400E
-NOISE_HI  = $400F
-APU_STATUS = $4015
+; APU_STATUS alias (different name in constants.inc)
+APU_STATUS = SND_CHN
 
-; Controller/OAM
-CONTROLLER1 = $4016
-OAMDMA = $4014
-
-; Button Masks
-BUTTON_A      = %10000000
-BUTTON_B      = %01000000
-BUTTON_SELECT = %00100000
-BUTTON_START  = %00010000
-BUTTON_UP     = %00001000
-BUTTON_DOWN   = %00000100
-BUTTON_LEFT   = %00000010
-BUTTON_RIGHT  = %00000001
-
-; Game Constants
-PLAYER_START_X = 120
-PLAYER_START_Y = 200
-PLAYER_SPEED   = 3
-SCROLL_SPEED = 1
+; Game Constants (specific to this game)
+PLAYER_SPEED   = 3     ; Override default from constants.inc
 
 ; Game States
 STATE_TITLE    = 0
 STATE_PLAYING  = 1
 STATE_GAMEOVER = 2
 STATE_PAUSED   = 3
+
+; Screen Boundaries
+SCREEN_BOTTOM      = 240      ; Y position considered off-screen (bottom)
+SCREEN_RIGHT_EDGE  = 248      ; X position considered off-screen (right)
+OAM_OVERFLOW_CHECK = 252      ; OAM index limit check (64 sprites * 4 bytes - 4)
+OAM_HIDE_Y         = $FF      ; Y position to hide sprite
+
+; Timing Constants (frames at 60fps)
+INVINCIBILITY_SHORT  = 30     ; Short invincibility (0.5 sec)
+INVINCIBILITY_LONG   = 90     ; Long invincibility (1.5 sec)
+BOMB_EFFECT_DURATION = 30     ; Bomb screen flash duration
+HURT_SOUND_DURATION  = 20     ; Hurt sound duration
+GAMEOVER_SOUND_DURATION = 60  ; Game over sound duration
+
+; Array Sizes
+MAX_BULLETS        = 8        ; Player bullets
+MAX_ENEMIES        = 16       ; Enemy slots
+MAX_ENEMY_BULLETS  = 8        ; Enemy bullet slots
+MAX_POWERUPS_GAME  = 4        ; Powerup slots
+MAX_EXPLOSIONS     = 8        ; Explosion slots
+NUM_STARS          = 20       ; Parallax stars
+
+; Tile IDs
+TILE_ZERO          = $30      ; '0' character tile for HUD
+
+; PPU Settings
+PPUMASK_NORMAL     = %00011110  ; Normal rendering
+PPUMASK_FLASH_WHITE = %11111110 ; All emphasis bits on
+PPUMASK_FLASH_RED  = %00111110  ; Red emphasis only
 
 ; Enemy Types
 ENEMY_BASIC    = 1      ; Straight down with sine wave
@@ -206,6 +197,10 @@ NMI:
   LDA nmi_ready
   BEQ @done
 
+  ; Apply PPUMASK shadow register (safe during VBlank)
+  LDA ppumask_shadow
+  STA PPUMASK
+
   LDA #$00
   STA OAMADDR
   LDA #$02
@@ -298,6 +293,10 @@ reset_player:
   STA wave_kills
   LDA #1
   STA wave_number       ; Start at wave 1
+
+  ; Initialize PPUMASK shadow to normal rendering
+  LDA #PPUMASK_NORMAL
+  STA ppumask_shadow
 
   ; Initialize boss system
   LDA #0
@@ -600,7 +599,7 @@ activate_bomb:
   ; Set bomb active with timer
   LDA #1
   STA bomb_active
-  LDA #30           ; Effect lasts 30 frames (0.5 seconds)
+  LDA #BOMB_EFFECT_DURATION
   STA bomb_timer
 
   ; Kill all enemies
@@ -622,8 +621,8 @@ activate_bomb:
   ; Deactivate enemy
   LDA #0
   STA enemy_active,X
-  ; Add score for each kill
-  LDA #5            ; 50 points per enemy
+  ; Add score for each kill (BCD: $50 = 50 decimal)
+  LDA #$50
   JSR add_score
 @skip_enemy:
   INX
@@ -646,24 +645,24 @@ update_bomb:
   ; Timer expired - deactivate
   LDA #0
   STA bomb_active
-  ; Reset screen colors
-  LDA #%00011110    ; Normal PPU settings
-  STA $2001
+  ; Reset to normal rendering (via shadow register - applied in NMI)
+  LDA #PPUMASK_NORMAL
+  STA ppumask_shadow
   JMP @bomb_done
 
 @do_flash:
-  ; Flash screen white/red based on timer
+  ; Flash screen white/red based on timer (via shadow register)
   LDA bomb_timer
   AND #%00000100    ; Toggle every 4 frames
   BEQ @flash_red
   ; Flash white - enable all color emphasis
-  LDA #%11111110
-  STA $2001
+  LDA #PPUMASK_FLASH_WHITE
+  STA ppumask_shadow
   JMP @bomb_done
 @flash_red:
   ; Flash red - red emphasis only
-  LDA #%00111110
-  STA $2001
+  LDA #PPUMASK_FLASH_RED
+  STA ppumask_shadow
 
 @bomb_done:
   RTS
@@ -1149,17 +1148,14 @@ check_boss_collision:
   STA temp
   JSR spawn_explosion
 
-  ; Big score bonus (500 points = 50 * 10)
-  LDA #50
+  ; Big score bonus (500 points in BCD)
+  ; Add $50 (50 BCD) ten times using loop
+  LDY #10           ; Loop counter
+@boss_score_loop:
+  LDA #$50
   JSR add_score
-  LDA #50
-  JSR add_score
-  LDA #50
-  JSR add_score
-  LDA #50
-  JSR add_score
-  LDA #50
-  JSR add_score
+  DEY
+  BNE @boss_score_loop
 
   ; Spawn powerup
   LDA boss_x
@@ -1554,11 +1550,11 @@ init_stars:
 @y_ok:
   STA star_y,X
 
-  ; Speed - 3 layers: slow (1), medium (2), fast (3)
+  ; Speed - 3 layers: very slow for background effect
   TXA
-  AND #$03           ; Get X mod 4
+  AND #$01           ; Get X mod 2 (0 or 1)
   CLC
-  ADC #1             ; Speed 1-4
+  ADC #1             ; Speed 1-2 (was 1-4, now much slower)
   STA star_speed,X
 
   INX
@@ -1645,7 +1641,8 @@ check_collisions:
   JSR spawn_explosion
   JSR play_explosion_sound
 
-  ; Add score
+  ; Add score (10 points BCD)
+  LDA #$10
   JSR add_score
 
   ; Maybe spawn powerup (1 in 8 chance)
@@ -1761,7 +1758,7 @@ player_take_damage:
   BEQ @no_shield
   ; Shield absorbs hit
   DEC player_shield
-  LDA #30             ; Brief invincibility (0.5 sec)
+  LDA #INVINCIBILITY_SHORT
   STA player_inv
   JSR play_hurt_sound
   RTS
@@ -1772,14 +1769,14 @@ player_take_damage:
 
   ; Lost a life
   DEC player_lives
-  LDA #3
+  LDA #PLAYER_LIVES   ; Reset HP to max
   STA player_hp
   LDA #0
   STA player_power    ; Lose powerup on death
   STA player_shield   ; Lose shield on death
 
 @still_alive:
-  LDA #90             ; 1.5 seconds invincibility
+  LDA #INVINCIBILITY_LONG
   STA player_inv
   JSR play_hurt_sound
   RTS
@@ -1788,17 +1785,21 @@ player_take_damage:
 ; Score System
 ; ============================================
 
+; add_score - Add value in A to the 24-bit BCD score
+; Input: A = BCD value to add (e.g., $10 for 10 points, $50 for 50 points)
+; Uses decimal mode for proper BCD arithmetic
 add_score:
-  ; Add 10 points per enemy
-  LDA score_lo
+  SED             ; Enable decimal mode for BCD addition
   CLC
-  ADC #10
+  ADC score_lo    ; Add to low byte
   STA score_lo
-  BCC @done
-  INC score_mid
-  BNE @done
-  INC score_hi
-@done:
+  LDA score_mid
+  ADC #0          ; Add carry to mid byte
+  STA score_mid
+  LDA score_hi
+  ADC #0          ; Add carry to high byte
+  STA score_hi
+  CLD             ; Restore binary mode
   RTS
 
 update_score_display:
@@ -1813,20 +1814,20 @@ draw_hud:
   LDA #$08
   STA PPUADDR
 
-  ; Convert score to digits and display
+  ; Convert BCD score to tile indices and display
   LDA score_hi
   LSR A
   LSR A
   LSR A
   LSR A
   CLC
-  ADC #$30            ; '0' tile
+  ADC #TILE_ZERO      ; Convert digit to tile
   STA PPUDATA
 
   LDA score_hi
   AND #$0F
   CLC
-  ADC #$30
+  ADC #TILE_ZERO
   STA PPUDATA
 
   LDA score_mid
@@ -1835,13 +1836,13 @@ draw_hud:
   LSR A
   LSR A
   CLC
-  ADC #$30
+  ADC #TILE_ZERO
   STA PPUDATA
 
   LDA score_mid
   AND #$0F
   CLC
-  ADC #$30
+  ADC #TILE_ZERO
   STA PPUDATA
 
   LDA score_lo
@@ -1850,13 +1851,13 @@ draw_hud:
   LSR A
   LSR A
   CLC
-  ADC #$30
+  ADC #TILE_ZERO
   STA PPUDATA
 
   LDA score_lo
   AND #$0F
   CLC
-  ADC #$30
+  ADC #TILE_ZERO
   STA PPUDATA
 
   ; Draw HP as hearts (just number for now)
@@ -1867,7 +1868,7 @@ draw_hud:
   STA PPUADDR
   LDA player_hp
   CLC
-  ADC #$30
+  ADC #TILE_ZERO
   STA PPUDATA
 
   ; Draw lives
@@ -1880,7 +1881,7 @@ draw_hud:
   STA PPUDATA
   LDA player_lives
   CLC
-  ADC #$30
+  ADC #TILE_ZERO
   STA PPUDATA
 
   RTS
@@ -1948,11 +1949,11 @@ render_sprites:
   INX
   INX
 
-  ; === ENGINE FLAME (animated exhaust behind ship) ===
-  ; Position: slightly left of and centered on player ship
+  ; === ENGINE FLAME (animated exhaust below ship) ===
+  ; Position: centered below player ship (exhaust pointing down)
   LDA player_y
   CLC
-  ADC #3              ; Center vertically on ship
+  ADC #8              ; Position below ship (exhaust behind)
   STA $0200,X
   LDA #SPRITE_PLAYER_BULLET  ; Reuse bullet sprite as flame
   STA $0201,X
@@ -1960,7 +1961,9 @@ render_sprites:
   LDA frame_counter
   LSR A               ; Shift for slower animation
   AND #$03            ; 4 palette cycle (0,1,2,3,0,1...)
-  ; Add flip based on frame for extra animation
+  ; Add vertical flip since flame points down
+  ORA #%10000000      ; Vertical flip for downward exhaust
+  ; Add horizontal flip based on frame for extra animation
   PHA
   LDA frame_counter
   AND #$02
@@ -1973,8 +1976,8 @@ render_sprites:
 @set_engine_attr:
   STA $0202,X
   LDA player_x
-  SEC
-  SBC #6              ; Position behind ship (to the left)
+  CLC
+  ADC #2              ; Center horizontally on ship
   STA $0203,X
   INX
   INX
@@ -2558,6 +2561,7 @@ sound_explode_timer DSB 1
 sound_hurt_timer   DSB 1
 
 nmi_ready      DSB 1
+ppumask_shadow DSB 1           ; Shadow register for PPUMASK (applied during VBlank)
 
   ENDE
 
