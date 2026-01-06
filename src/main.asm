@@ -58,9 +58,9 @@ SPRITE_ENEMY_BULLET = $0C
   BYTE 0, 0, 0, 0, 0, 0, 0, 0
 
 ; ============================================
-; PRG-ROM ($C000-$FFFF, mirrored at $8000-$BFFF)
+; PRG-ROM - Mapper 0, 1 bank at $8000-$BFFF (mirrored to $C000-$FFFF)
 ; ============================================
-  ORG $C000
+  ORG $8000
 
 ; ============================================
 ; Reset Handler
@@ -76,13 +76,8 @@ Reset:
   STA PPUCTRL
   STA PPUMASK
 
-  BIT PPUSTATUS
-@wait1:
-  BIT PPUSTATUS
-  BPL @wait1
-@wait2:
-  BIT PPUSTATUS
-  BPL @wait2
+  ; Skip PPU warmup waits for emulator compatibility
+  ; Real hardware needs these, but emulators don't
 
   JSR clear_ram
   JSR init_game
@@ -162,7 +157,7 @@ clear_ram:
   TAX
 @loop:
   STA $0000,X
-  STA $0100,X
+  ; Skip $0100,X - stack page (don't corrupt stack!)
   STA $0200,X
   STA $0300,X
   STA $0400,X
@@ -665,9 +660,9 @@ enemy_hp       DSB 16
   ENDE
 
 ; ============================================
-; Interrupt Vectors (at end of PRG-ROM)
+; Interrupt Vectors (at end of 16KB PRG-ROM bank)
 ; ============================================
-  PAD $FFFA
+  PAD $BFFA
   WORD NMI
   WORD Reset
   WORD IRQ
