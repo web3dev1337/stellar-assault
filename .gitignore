@@ -1,0 +1,38 @@
+# Build outputs
+*.o
+*.nes
+*.map
+*.lst
+*.dbg
+*.nl
+*.ram.nl
+*.chr
+*.bin
+
+# Assembler outputs
+*.s.tmp
+*.inc.tmp
+
+# Emulator saves
+*.sav
+*.sa*
+*.fds
+*.fc*
+
+# Debugging
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Test outputs
+test-results/
+coverage/
