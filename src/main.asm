@@ -1550,11 +1550,11 @@ init_stars:
 @y_ok:
   STA star_y,X
 
-  ; Speed - 3 layers: slow (1), medium (2), fast (3)
+  ; Speed - 3 layers: very slow for background effect
   TXA
-  AND #$03           ; Get X mod 4
+  AND #$01           ; Get X mod 2 (0 or 1)
   CLC
-  ADC #1             ; Speed 1-4
+  ADC #1             ; Speed 1-2 (was 1-4, now much slower)
   STA star_speed,X
 
   INX
@@ -1949,11 +1949,11 @@ render_sprites:
   INX
   INX
 
-  ; === ENGINE FLAME (animated exhaust behind ship) ===
-  ; Position: slightly left of and centered on player ship
+  ; === ENGINE FLAME (animated exhaust below ship) ===
+  ; Position: centered below player ship (exhaust pointing down)
   LDA player_y
   CLC
-  ADC #3              ; Center vertically on ship
+  ADC #8              ; Position below ship (exhaust behind)
   STA $0200,X
   LDA #SPRITE_PLAYER_BULLET  ; Reuse bullet sprite as flame
   STA $0201,X
@@ -1961,7 +1961,9 @@ render_sprites:
   LDA frame_counter
   LSR A               ; Shift for slower animation
   AND #$03            ; 4 palette cycle (0,1,2,3,0,1...)
-  ; Add flip based on frame for extra animation
+  ; Add vertical flip since flame points down
+  ORA #%10000000      ; Vertical flip for downward exhaust
+  ; Add horizontal flip based on frame for extra animation
   PHA
   LDA frame_counter
   AND #$02
@@ -1974,8 +1976,8 @@ render_sprites:
 @set_engine_attr:
   STA $0202,X
   LDA player_x
-  SEC
-  SBC #6              ; Position behind ship (to the left)
+  CLC
+  ADC #2              ; Center horizontally on ship
   STA $0203,X
   INX
   INX
