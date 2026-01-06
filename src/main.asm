@@ -498,6 +498,54 @@ check_collisions:
   INX
   CPX #8
   BNE @bullet_loop
+
+  ; === PLAYER-ENEMY COLLISION ===
+  ; Check if player is invincible
+  LDA player_inv
+  BNE @skip_player_collision  ; Skip if invincible
+
+  LDY #0
+@player_enemy_loop:
+  LDA enemy_active,Y
+  BEQ @next_pe
+
+  ; Check X overlap: if |player_x - enemy_x| < 12
+  LDA player_x
+  SEC
+  SBC enemy_x,Y
+  CLC
+  ADC #8              ; Add half-widths (8+4=12, but use 8 for center offset)
+  CMP #16             ; Combined width check
+  BCS @next_pe
+
+  ; Check Y overlap: if |player_y - enemy_y| < 12
+  LDA player_y
+  SEC
+  SBC enemy_y,Y
+  CLC
+  ADC #8
+  CMP #16
+  BCS @next_pe
+
+  ; COLLISION! Player hit by enemy
+  DEC player_hp       ; Reduce HP
+  LDA #60             ; 1 second of invincibility (60 frames)
+  STA player_inv
+
+  LDA #0              ; Deactivate the enemy that hit us
+  STA enemy_active,Y
+
+  LDA #4              ; Play hit sound (noise channel)
+  STA sound_channel+2
+
+  JMP @skip_player_collision  ; Only one hit per frame
+
+@next_pe:
+  INY
+  CPY #16
+  BNE @player_enemy_loop
+
+@skip_player_collision:
   RTS
 
 ; ============================================
@@ -513,6 +561,14 @@ render_sprites:
   BNE @clear
 
   LDX #0
+
+  ; Check invincibility - blink player when hit
+  LDA player_inv
+  BEQ @draw_player       ; Not invincible, draw normally
+  AND #$04               ; Check bit 2 (blink every 4 frames)
+  BNE @skip_player       ; Don't draw on alternate frames
+
+@draw_player:
   LDA player_y
   STA $0200,X
   LDA #SPRITE_PLAYER
@@ -521,6 +577,13 @@ render_sprites:
   STA $0202,X
   LDA player_x
   STA $0203,X
+  JMP @player_done
+
+@skip_player:
+  LDA #$FF               ; Hide sprite off-screen
+  STA $0200,X
+
+@player_done:
 
   LDX #4
   LDY #0
