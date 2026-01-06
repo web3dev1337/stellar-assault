@@ -34,6 +34,7 @@ jobs:
 
       - name: Generate CHR-ROM graphics
         run: |
+          mkdir -p assets/chr
           python3 tools/generate_chr.py
 
       - name: Build NES ROM
