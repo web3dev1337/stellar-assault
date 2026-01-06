@@ -1,13 +1,6 @@
 ; ============================================
 ; Stellar Assault - Advanced NES Space Shooter
 ; ============================================
-; Showcases mastery of 6502 assembly:
-; - Sprite multiplexing (32+ sprites)
-; - Optimized collision detection
-; - Subpixel movement (8.8 fixed-point)
-; - Custom APU sound engine
-; - Advanced enemy AI patterns
-; ============================================
 
 ; PPU Registers
 PPUCTRL   = $2000
@@ -57,15 +50,15 @@ SPRITE_ENEMY_BULLET = $0C
 ; ============================================
 ; iNES Header
 ; ============================================
-  BYTE "NES", $1A       ; iNES identifier
-  BYTE 2                ; 2 * 16KB PRG-ROM
+  BYTE "NES", $1A
+  BYTE 1                ; 1 * 16KB PRG-ROM (mirrored to $8000-$BFFF and $C000-$FFFF)
   BYTE 1                ; 1 * 8KB CHR-ROM
   BYTE %00000001        ; Mapper 0, vertical mirroring
-  BYTE 0                ; Mapper 0
-  BYTE 0, 0, 0, 0, 0, 0, 0, 0  ; Padding
+  BYTE 0
+  BYTE 0, 0, 0, 0, 0, 0, 0, 0
 
 ; ============================================
-; PRG-ROM Code
+; PRG-ROM ($C000-$FFFF, mirrored at $8000-$BFFF)
 ; ============================================
   ORG $C000
 
@@ -73,23 +66,16 @@ SPRITE_ENEMY_BULLET = $0C
 ; Reset Handler
 ; ============================================
 Reset:
-  SEI             ; Disable interrupts
-  CLD             ; Disable decimal mode
-
-  ; Disable APU frame IRQ
+  SEI
+  CLD
   LDX #$40
   STX $4017
-
-  ; Initialize stack pointer
   LDX #$FF
   TXS
-
-  ; Disable NMI
   LDA #0
   STA PPUCTRL
   STA PPUMASK
 
-  ; Wait for PPU to stabilize
   BIT PPUSTATUS
 @wait1:
   BIT PPUSTATUS
@@ -98,51 +84,32 @@ Reset:
   BIT PPUSTATUS
   BPL @wait2
 
-  ; Clear RAM
   JSR clear_ram
-
-  ; Initialize game
   JSR init_game
-
-  ; Initialize PPU
   JSR init_ppu
 
-  ; Enable NMI and rendering
-  LDA #%10010000   ; Enable NMI
+  LDA #%10010000
   STA PPUCTRL
-  LDA #%00011110   ; Enable sprites and background
+  LDA #%00011110
   STA PPUMASK
 
-  ; Main loop
 main_loop:
-  ; Wait for NMI
 @wait_nmi:
   LDA nmi_ready
   BNE @wait_nmi
 
-  ; Read controller
   JSR read_controller
-
-  ; Update game
   JSR update_player
   JSR update_bullets
   JSR update_enemies
   JSR check_collisions
   JSR spawn_enemies
-
-  ; Update sound
   JSR update_sound
-
-  ; Render
   JSR render_sprites
 
-  ; Signal NMI
   LDA #1
   STA nmi_ready
-
-  ; Increment frame
   INC frame_counter
-
   JMP main_loop
 
 ; ============================================
@@ -158,20 +125,17 @@ NMI:
   LDA nmi_ready
   BEQ @done
 
-  ; OAM DMA
   LDA #$00
   STA OAMADDR
   LDA #$02
   STA OAMDMA
 
-  ; Update scroll
   BIT PPUSTATUS
   LDA scroll_x
   STA PPUSCROLL
   LDA scroll_y
   STA PPUSCROLL
 
-  ; Clear flag
   LDA #0
   STA nmi_ready
 
@@ -210,17 +174,12 @@ clear_ram:
   RTS
 
 init_game:
-  ; Player position
   LDA #PLAYER_START_X
   STA player_x
   LDA #PLAYER_START_Y
   STA player_y
-
-  ; Player stats
   LDA #3
   STA player_hp
-
-  ; Clear states
   LDA #0
   STA player_inv
   STA player_fire_delay
@@ -229,7 +188,6 @@ init_game:
   STA scroll_x
   STA scroll_y
 
-  ; Clear OAM
   LDX #0
   LDA #$FF
 @clear_oam:
@@ -237,7 +195,6 @@ init_game:
   INX
   BNE @clear_oam
 
-  ; Clear objects
   LDX #0
 @clear_bullets:
   STA bullet_active,X
@@ -245,11 +202,9 @@ init_game:
   INX
   CPX #16
   BNE @clear_bullets
-
   RTS
 
 init_ppu:
-  ; Clear nametables
   BIT PPUSTATUS
   LDA #$20
   STA PPUADDR
@@ -266,14 +221,12 @@ init_ppu:
   DEX
   BNE @clear_nt
 
-  ; Set palettes
   BIT PPUSTATUS
   LDA #$3F
   STA PPUADDR
   LDA #$00
   STA PPUADDR
 
-  ; BG palette
   LDX #0
 @bg_pal:
   LDA palette_bg,X
@@ -282,7 +235,6 @@ init_ppu:
   CPX #16
   BNE @bg_pal
 
-  ; Sprite palette
   LDX #0
 @spr_pal:
   LDA palette_sprite,X
@@ -290,7 +242,6 @@ init_ppu:
   INX
   CPX #16
   BNE @spr_pal
-
   RTS
 
 ; ============================================
@@ -313,7 +264,6 @@ read_controller:
   ROL buttons
   DEX
   BNE @loop
-
   RTS
 
 ; ============================================
@@ -321,7 +271,6 @@ read_controller:
 ; ============================================
 
 update_player:
-  ; Decrement timers
   LDA player_inv
   BEQ @no_inv
   DEC player_inv
@@ -332,7 +281,6 @@ update_player:
   DEC player_fire_delay
 @no_delay:
 
-  ; Movement - Right
   LDA buttons
   AND #BUTTON_RIGHT
   BEQ @not_right
@@ -344,7 +292,6 @@ update_player:
   STA player_x
 @not_right:
 
-  ; Movement - Left
   LDA buttons
   AND #BUTTON_LEFT
   BEQ @not_left
@@ -356,7 +303,6 @@ update_player:
   STA player_x
 @not_left:
 
-  ; Movement - Down
   LDA buttons
   AND #BUTTON_DOWN
   BEQ @not_down
@@ -368,7 +314,6 @@ update_player:
   STA player_y
 @not_down:
 
-  ; Movement - Up
   LDA buttons
   AND #BUTTON_UP
   BEQ @not_up
@@ -380,7 +325,6 @@ update_player:
   STA player_y
 @not_up:
 
-  ; Shooting
   LDA buttons
   AND #BUTTON_A
   BEQ @not_shoot
@@ -392,7 +336,6 @@ update_player:
   LDA #8
   STA player_fire_delay
 @not_shoot:
-
   RTS
 
 ; ============================================
@@ -528,7 +471,6 @@ check_collisions:
   LDA enemy_active,Y
   BEQ @next_enemy
 
-  ; Check X
   LDA bullet_x,X
   SEC
   SBC enemy_x,Y
@@ -537,7 +479,6 @@ check_collisions:
   CMP #12
   BCS @next_enemy
 
-  ; Check Y
   LDA bullet_y,X
   SEC
   SBC enemy_y,Y
@@ -546,12 +487,10 @@ check_collisions:
   CMP #12
   BCS @next_enemy
 
-  ; Hit!
   LDA #0
   STA bullet_active,X
   STA enemy_active,Y
 
-  ; Sound
   LDA #2
   STA sound_channel
 
@@ -564,7 +503,6 @@ check_collisions:
   INX
   CPX #8
   BNE @bullet_loop
-
   RTS
 
 ; ============================================
@@ -572,7 +510,6 @@ check_collisions:
 ; ============================================
 
 render_sprites:
-  ; Clear OAM
   LDX #0
   LDA #$FF
 @clear:
@@ -580,7 +517,6 @@ render_sprites:
   INX
   BNE @clear
 
-  ; Player
   LDX #0
   LDA player_y
   STA $0200,X
@@ -591,7 +527,6 @@ render_sprites:
   LDA player_x
   STA $0203,X
 
-  ; Bullets
   LDX #4
   LDY #0
 @bullets:
@@ -614,7 +549,6 @@ render_sprites:
   CPY #8
   BNE @bullets
 
-  ; Enemies
   LDY #0
 @enemies:
   LDA enemy_active,Y
@@ -646,7 +580,6 @@ render_sprites:
 ; ============================================
 
 update_sound:
-  ; Channel 0 - shoot
   LDA sound_channel
   BEQ @no_sound
   LDA #$87
@@ -659,7 +592,6 @@ update_sound:
   STA sound_channel
 @no_sound:
 
-  ; Channel 2 - hit
   LDA sound_channel+2
   BEQ @no_hit
   LDA #$8F
@@ -671,7 +603,6 @@ update_sound:
   LDA #0
   STA sound_channel+2
 @no_hit:
-
   RTS
 
 ; ============================================
@@ -691,7 +622,7 @@ palette_sprite:
   BYTE $0F,$0A,$1A,$2A
 
 ; ============================================
-; Variables (Zero Page) - Use ENUM for addresses
+; Variables (Zero Page)
 ; ============================================
   ENUM $0000
 
@@ -717,7 +648,7 @@ nmi_ready      DSB 1
   ENDE
 
 ; ============================================
-; Variables (RAM) - Use ENUM for addresses
+; Variables (RAM)
 ; ============================================
   ENUM $0300
 
@@ -734,9 +665,9 @@ enemy_hp       DSB 16
   ENDE
 
 ; ============================================
-; Interrupt Vectors
+; Interrupt Vectors (at end of PRG-ROM)
 ; ============================================
-  ORG $FFFA
+  PAD $FFFA
   WORD NMI
   WORD Reset
   WORD IRQ
