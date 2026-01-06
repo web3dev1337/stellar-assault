@@ -53,7 +53,7 @@ SPRITE_ENEMY_BULLET = $0C
   BYTE "NES", $1A
   BYTE 1                ; 1 * 16KB PRG-ROM (mirrored to $8000-$BFFF and $C000-$FFFF)
   BYTE 1                ; 1 * 8KB CHR-ROM
-  BYTE %00000001        ; Mapper 0, vertical mirroring
+  BYTE %00000000        ; Mapper 0, horizontal mirroring
   BYTE 0
   BYTE 0, 0, 0, 0, 0, 0, 0, 0
 
