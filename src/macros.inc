@@ -100,11 +100,15 @@ ENDM
 
 ; Cmp16 - Compare 16-bit value (sets flags)
 ; Usage: Cmp16 var_lo, var_hi, value_lo, value_hi
+; Correctly compares high byte first, then low byte if high bytes are equal
+; Sets N/Z/C flags as if comparing a 16-bit value
 MACRO Cmp16
-  LDA \1
+  LDA \2        ; Compare high bytes first
+  CMP \4
+  BNE @done     ; If not equal, flags are already correct
+  LDA \1        ; High bytes equal, compare low bytes
   CMP \3
-  LDA \2
-  SBC \4
+@done:
 ENDM
 
 ; MemCopy - Copy N bytes from source to destination
